@@ -3,6 +3,10 @@ This repository provides the official PyTorch implementation of the following pa
 
 > **Emotion-aware Multi-view Contrastive Learning for Facial Emotion Recognition (ECCV 2022)**<br>
 
+- Real-time demo with pre-trained weights
+<p align="center">
+<img src="https://github.com/kdhht2334/AVCE_FER/blob/main/AVCE_DEMO/AVCE_demo_vid.gif" height="320"/>
+</p>
 
 ## Requirements
 
