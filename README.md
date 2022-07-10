@@ -25,7 +25,7 @@ pip install -r requirements.txt
 
 __[22.07.10]: Add source code and demo.__
 
-__[22.07.07] OPEN official pytorch version of CAL-FER.__
+__[22.07.07] OPEN official pytorch version of AVCE_FER.__
 
 -------
 
