@@ -69,7 +69,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py --freq 250 --model alexnet --online_tracke
 
 ## Real-time demo
 
-1. Go to `/Real_demo`.
+1. Go to `/AVCE_demo`.
 
 2. Run `main.py`.
 
