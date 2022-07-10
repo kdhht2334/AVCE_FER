@@ -5,7 +5,7 @@ This repository provides the official PyTorch implementation of the following pa
 
 - Real-time demo with pre-trained weights
 <p align="center">
-<img src="https://github.com/kdhht2334/AVCE_FER/blob/main/AVCE_DEMO/AVCE_demo_vid.gif" height="320"/>
+<img src="https://github.com/kdhht2334/AVCE_FER/blob/main/AVCE_demo/AVCE_demo_vid.gif" height="320"/>
 </p>
 
 ## Requirements
