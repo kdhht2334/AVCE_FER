@@ -201,7 +201,6 @@ class SPRegressor_light(nn.Module):
     def __init__(self, discrete_opt):
         super(SPRegressor_light, self).__init__()
         self.discrete_opt = discrete_opt
-        self.sigmoid = nn.Sigmoid()
         self.lin1 = nn.Linear(32, 256)
         if self.discrete_opt:
             self.lin2 = nn.Linear(256, 7)
@@ -211,7 +210,7 @@ class SPRegressor_light(nn.Module):
     def forward(self, x):
         x = F.relu(self.lin1(x))
         if self.discrete_opt:
-            return self.sigmoid(self.lin2(x))
+            return self.lin2(x)
         else:
             return 0.5 * torch.tanh(self.lin2(x))
 
