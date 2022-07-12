@@ -77,8 +77,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py --freq 250 --model alexnet --online_tracke
   - Facial detection and AV FER functionalities are equipped.
   - Before that, you have to train and save `Encoder.t7` and `FC_layer.t7`.
 
----
-### BibTeX
+
+## BibTeX
 
 ##### Updated soon.
--------
