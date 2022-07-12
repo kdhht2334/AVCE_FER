@@ -12,12 +12,8 @@ import pretrainedmodels.utils as utils
 
 from fabulous.color import fg256
 
-#alexnet   = pretrainedmodels.__dict__['alexnet'](num_classes=1000, pretrained=None).cuda()
-#resnet    = pretrainedmodels.__dict__['resnet18'](num_classes=1000, pretrained=None).cuda()
-resnet50  = pretrainedmodels.__dict__['resnet50'](num_classes=1000, pretrained=None).cuda()
-resnet101 = pretrainedmodels.__dict__['resnet101'](num_classes=1000, pretrained=None).cuda()
-alexnet = pretrainedmodels.__dict__['alexnet'](num_classes=1000, pretrained='imagenet').cuda()
-resnet  = pretrainedmodels.__dict__['resnet18'](num_classes=1000, pretrained='imagenet').cuda()
+alexnet   = pretrainedmodels.__dict__['alexnet'](num_classes=1000, pretrained=None).cuda()
+resnet    = pretrainedmodels.__dict__['resnet18'](num_classes=1000, pretrained=None).cuda()
 
 
 class Encoder_Alex(nn.Module):

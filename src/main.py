@@ -6,8 +6,10 @@ import os
 import argparse
 app = argparse.ArgumentParser()
 app.add_argument("--freq", type=int, default=250, help='Saving frequency.')
-app.add_argument("--model", type=str, default='alexnet', help='alexnet / resnet18 / resnet50 / resnet101')
+app.add_argument("--model", type=str, default='alexnet', help='alexnet / resnet18 / resnet50 / resnet101.')
 app.add_argument("--online_tracker", type=int, default=1, help='Whether or not applying wandb.')
+app.add_argument("--dataset", type=str, default='aff_wild', help='aff_wild / aff_wild2 / afew_va / affectnet.')
+
 app.add_argument("--data_path", type=str, default='/')
 app.add_argument("--save_path", type=str, default='/')
 args = app.parse_args()
@@ -19,6 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from time import gmtime, strftime
+from tqdm import tqdm
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
@@ -36,14 +39,15 @@ from fabulous.color import fg256
 
 import cvxpy as cp
 import wandb
-import augly.image as imaugs
 
 from utils import init_weights, pair_mining, pcc_ccc_loss, vector_difference, penalty_function
+from dataset_utils import FaceDataset
 from models import encoder_Alex, encoder_R18, regressor_Alex, regressor_R18, regressor_R50, regressor_R101, spregressor, vregressor
 from cvx_utils import OptLayer
+from evaluation import interm_evaluation
 
 
-def model_training(model, optimizer, scheduler, num_epochs):
+def model_training(model, optimizer, scheduler, current_info, num_epochs):
 
     if args.online_tracker:
         wandb.init(project="AVCE_FER")
@@ -89,13 +93,18 @@ def model_training(model, optimizer, scheduler, num_epochs):
     hs_ = lambda zs,xs: cp.sum(zs) - 1 if isinstance(zs, cp.Variable) else zs.sum() - 1
     sm_layer = OptLayer([zs], [xs], fs_, [], [hs_])
 
+    if not os.path.exists(args.save_path):
+        os.makedirs(args.save_path)
 
     # Itr per epoch
     for epoch in range(num_epochs):
 
         print('epoch ' + str(epoch) + '/' + str(num_epochs-1))
-
-        for batch_i, data_i in enumerate(loaders['train']):
+        epoch_iterator = tqdm(loaders['train'],
+                              desc="Training (X / X Steps) (loss=X.X)",
+                              bar_format="{l_bar}{r_bar}",
+                              dynamic_ncols=True)
+        for batch_i, data_i in enumerate(epoch_iterator):
 
             for enc_param_group in enc_opt.param_groups:
                 aa = enc_param_group['lr']
@@ -106,7 +115,6 @@ def model_training(model, optimizer, scheduler, num_epochs):
             valence = np.expand_dims(np.asarray(emotions[0]), axis=1)
             arousal = np.expand_dims(np.asarray(emotions[1]), axis=1)
             emotions = torch.from_numpy(np.concatenate([valence, arousal], axis=1)).float()
-            path = np.asarray(path)
 
             if use_gpu:
                 inputs, correct_labels = Variable(data.cuda()), Variable(emotions.cuda())
@@ -207,8 +215,8 @@ def model_training(model, optimizer, scheduler, num_epochs):
             enc_opt.step()
             reg_opt.step()
             vreg_opt.step()
-            
 
+            
             if args.online_tracker:
                 wandb.log({
                     "loss": loss.item(), 
@@ -219,145 +227,21 @@ def model_training(model, optimizer, scheduler, num_epochs):
                 })
 
             if cnt % args.freq == 0 or cnt == 50:
-                encoder_name = args.save_path + '/Aff-wild_AVCE_enc_{}_{}.t7'.format(cnt, epoch)
-                regressor_name = args.save_path + '/Aff-wild_AVCE_reg_{}_{}.t7'.format(cnt, epoch)
+                encoder_name   = args.save_path + 'Enc_{}_{}.t7'.format(cnt, epoch)
+                regressor_name = args.save_path + 'Reg_{}_{}.t7'.format(cnt, epoch)
                 torch.save(encoder.state_dict(), encoder_name)
                 torch.save(regressor.state_dict(), regressor_name)
 
                 # Validation
-                interm_evaluation([encoder, regressor, sp_regressor], MSE, [encoder_name, regressor_name], cnt)
+                interm_evaluation([encoder, regressor, sp_regressor], [encoder_name, regressor_name], 
+                                  loaders, current_info, cnt)
 
             cnt = cnt + 1
 
             scheduler[0].step()
             scheduler[1].step()
             scheduler[2].step()
-
-
-def interm_evaluation(model, metric, weights_name, cnt):
-    
-    encoder = model[0]
-    regressor = model[1]
-    sp_regressor = model[2]
-
-    MSE = metric
-
-    encoder_name = weights_name[0]
-    regressor_name = weights_name[1]
-
-    count = cnt
-    
-    encoder.load_state_dict(torch.load(encoder_name), strict=False)
-    regressor.load_state_dict(torch.load(regressor_name), strict=False)
-
-    encoder.train(False)
-    regressor.train(False)
-    sp_regressor.train(False)
-
-    total_loss = 0.0
-    total_ccc_a, total_ccc_v = 0.0, 0.0
-    total_rmse_a, total_rmse_v = 0.0, 0.0
-    total_pcc_a, total_pcc_v = 0.0, 0.0
-    cnt = 0
-
-    weak_idx, hard_idx = [], []
-    z_list, scores_list, labels_list = [], [], []
-    with torch.no_grad():
-        for batch_i, data_i in enumerate(loaders['val']):
-            elist = []
-            
-            data, emotions = data_i['image'], data_i['va']
-            valence = np.expand_dims(np.asarray(emotions[0]), axis=1)  # [64, 1]
-            arousal = np.expand_dims(np.asarray(emotions[1]), axis=1)
-            emotions = torch.from_numpy(np.concatenate([valence, arousal], axis=1)).float()
-
-            if use_gpu:
-                inputs, correct_labels = Variable(data.cuda()), Variable(emotions.cuda())
-            else:
-                inputs, correct_labels = Variable(data), Variable(emotions)                                       
-            
-            z = encoder(inputs)
-            scores, _ = regressor(z)
-
-            scores_list.append(scores.detach().cpu().numpy())
-            labels_list.append(correct_labels.detach().cpu().numpy())
-
-            RMSE_valence = MSE(scores[:,0], correct_labels[:,0])**0.5
-            RMSE_arousal = MSE(scores[:,1], correct_labels[:,1])**0.5
-            
-            total_rmse_v += RMSE_valence.item(); total_rmse_a += RMSE_arousal.item()
-            cnt = cnt + 1
-
-    scores_th = np.concatenate(scores_list, axis=0)
-    labels_th = np.concatenate(labels_list, axis=0)
-
-    std_l_v = np.std(labels_th[:,0]); std_p_v = np.std(scores_th[:,0])
-    std_l_a = np.std(labels_th[:,1]); std_p_a = np.std(scores_th[:,1])
-
-    mean_l_v = np.mean(labels_th[:,0]); mean_p_v = np.mean(scores_th[:,0])
-    mean_l_a = np.mean(labels_th[:,1]); mean_p_a = np.mean(scores_th[:,1])
-
-    PCC_v = np.cov(labels_th[:,0], np.transpose(scores_th[:,0])) / (std_l_v * std_p_v)
-    PCC_a = np.cov(labels_th[:,1], np.transpose(scores_th[:,1])) / (std_l_a * std_p_a)
-    CCC_v = 2.0 * np.cov(labels_th[:,0], np.transpose(scores_th[:,0])) / ( np.power(std_l_v,2) + np.power(std_p_v,2) + (mean_l_v - mean_p_v)**2 )
-    CCC_a = 2.0 * np.cov(labels_th[:,1], np.transpose(scores_th[:,1])) / ( np.power(std_l_a,2) + np.power(std_p_a,2) + (mean_l_a - mean_p_a)**2 )
-
-    sagr_v_cnt = 0
-    for i in range(len(labels_th)):
-        if np.sign(labels_th[i,0]) == np.sign(scores_th[i,0]) and labels_th[i,0] != 0:
-            sagr_v_cnt += 1
-    SAGR_v = sagr_v_cnt / len(labels_th)
-
-    sagr_a_cnt = 0
-    for i in range(len(labels_th)):
-        if np.sign(labels_th[i,1]) == np.sign(scores_th[i,1]) and labels_th[i,1] != 0:
-            sagr_a_cnt += 1
-    SAGR_a = sagr_a_cnt / len(labels_th)
-
-    final_rmse_v = total_rmse_v/cnt
-    final_rmse_a = total_rmse_a/cnt
-
-    # write results to log file
-    with open(current_dir+'/log/'+current_time+'.txt', 'a') as f:
-        f.writelines(['Itr: \t{},\n PCC: \t{}|\t {},\n CCC: \t{}|\t {},\n SAGR: \t{}|\t {},\n RMSE: \t{}|\t {}\n\n'.format(count, PCC_v[0,1], PCC_a[0,1], CCC_v[0,1], CCC_a[0,1], SAGR_v, SAGR_a, final_rmse_v, final_rmse_a)])
-
-
-class FaceDataset(Dataset):
-    """Face dataset."""
-
-    def __init__(self, csv_file, root_dir, transform=None, inFolder=None, landmarks=False):
-        """
-        Args:
-            csv_file (string): Path to the csv file with annotations.
-            root_dir (string): Directory with all the images.
-            transform (callable, optional): Optional transform to be applied
-                on a sample.
-        """
-        self.training_sheet = pd.read_csv(csv_file)
-        self.root_dir = root_dir
-        self.transform = transform
-        if inFolder is None:
-            self.inFolder = np.full((len(self.training_sheet),), True)
-        
-        self.loc_list = np.where(inFolder)[0]
-        self.infold = self.inFolder
-        
-    def __len__(self):
-        return  np.sum(self.infold*1)
-
-    def __getitem__(self, idx):
-        valence = self.training_sheet.iloc[idx,1]*0.8
-        arousal = self.training_sheet.iloc[idx,2]*0.8
-
-        img_name = os.path.join(self.root_dir,
-                                self.training_sheet.iloc[idx, 0])
-        
-        image = Image.open(img_name)
-        sample = image
-        
-        if self.transform:
-            sample = self.transform(sample)
-        return {'image': sample, 'va': [valence, arousal], 'path': self.training_sheet.iloc[idx, 0]}
+            scheduler[3].step()
 
 
 if __name__ == "__main__":
@@ -377,13 +261,13 @@ if __name__ == "__main__":
     # Make log file
     if args.online_tracker:
         with open(current_dir+'/log/'+current_time+'.txt', 'w') as f:
-            f.writelines(["Title: AVCE ({}).\n".format(args.model)])
+            f.writelines(["Title: AVCE (Model: {}\t Dataset: {}).\n".format(args.model, args.dataset)])
 
     #------------
     # Data loader
     #------------
-    training_path = args.data_path + 'training.csv'
-    validation_path = args.data_path + 'validation.csv'
+    training_path = args.data_path + 'training_list.csv'
+    validation_path = args.data_path + 'validation_list.csv'
 
     face_dataset = FaceDataset(csv_file=training_path,
                                root_dir=args.data_path,
@@ -404,7 +288,10 @@ if __name__ == "__main__":
                                    ]), inFolder=None)
 
     
-    batch_size = 256
+    if args.model == 'alexnet': batch_size = 256
+    elif args.model == 'resnet18': batch_size = 128
+    else: batch_size = 64
+
     dataloader = DataLoader(face_dataset, batch_size=batch_size, shuffle=True)
     dataloader_val = DataLoader(face_dataset_val, batch_size=64, shuffle=False)
     
@@ -427,13 +314,13 @@ if __name__ == "__main__":
     elif args.model == 'resnet50':
         print(fg256("green", 'Choose model:ResNet50'))
         import pretrainedmodels
-        resnet50     = pretrainedmodels.__dict__['resnet50'](num_classes=1000, pretrained='imagenet')
+        resnet50     = pretrainedmodels.__dict__['resnet50'](num_classes=1000, pretrained=None)
         encoder2     = nn.DataParallel(resnet50).to(device)
         regressor    = regressor_R50().to(device)
     elif args.model == 'resnet101':
         print(fg256("green", 'Choose model:ResNet101'))
         import pretrainedmodels
-        resnet101    = pretrainedmodels.__dict__['resnet101'](num_classes=1000, pretrained='imagenet')
+        resnet101    = pretrainedmodels.__dict__['resnet101'](num_classes=1000, pretrained=None)
         encoder2     = nn.DataParallel(resnet101).to(device)
         regressor    = regressor_R101().to(device)
 
@@ -445,10 +332,10 @@ if __name__ == "__main__":
     spreg_opt = optim.SGD(sp_regressor.parameters(), lr = 1e-2, momentum=0.9)
     vreg_opt  = optim.SGD(v_regressor.parameters(),  lr = 1e-2, momentum=0.9)
     
-    enc_exp_lr_scheduler   = lr_scheduler.MultiStepLR(enc_opt, milestones=[5e3,10e3,20e3,50e3,100e3], gamma=0.8)
-    reg_exp_lr_scheduler   = lr_scheduler.MultiStepLR(reg_opt, milestones=[5e3,10e3,20e3,50e3,100e3], gamma=0.8)
-    spreg_exp_lr_scheduler = lr_scheduler.MultiStepLR(spreg_opt, milestones=[5e3,10e3,20e3,50e3,100e3], gamma=0.8)
-    vreg_exp_lr_scheduler  = lr_scheduler.MultiStepLR(vreg_opt, milestones=[5e3,10e3,20e3,50e3,100e3], gamma=0.8)
+    enc_exp_lr_scheduler   = lr_scheduler.MultiStepLR(enc_opt, milestones=[5e3,25e3,45e3,65e3,85e3], gamma=0.8)
+    reg_exp_lr_scheduler   = lr_scheduler.MultiStepLR(reg_opt, milestones=[5e3,25e3,45e3,65e3,85e3], gamma=0.8)
+    spreg_exp_lr_scheduler = lr_scheduler.MultiStepLR(spreg_opt, milestones=[5e3,25e3,45e3,65e3,85e3], gamma=0.8)
+    vreg_exp_lr_scheduler  = lr_scheduler.MultiStepLR(vreg_opt, milestones=[5e3,25e3,45e3,65e3,85e3], gamma=0.8)
     
     #-----------------------
     # Training or evaluation
@@ -456,4 +343,4 @@ if __name__ == "__main__":
     model_training([encoder2             , regressor            , sp_regressor           , v_regressor]           ,
                    [enc_opt              , reg_opt              , spreg_opt              , vreg_opt]              ,
                    [enc_exp_lr_scheduler , reg_exp_lr_scheduler , spreg_exp_lr_scheduler , vreg_exp_lr_scheduler] ,
-                   num_epochs=100)
+                   [current_dir, current_time], num_epochs=100)
