@@ -23,15 +23,13 @@ To install all dependencies, do this.
 pip install -r requirements.txt
 ```
 
--------
 
 ## News
 
-__[22.07.10]: Add source code and demo.__
+[22.07.10]: Add source code and demo.
 
-__[22.07.07] OPEN official pytorch version of AVCE_FER.__
+[22.07.07] OPEN official pytorch version of AVCE_FER.
 
--------
 
 ## Datasets
 
@@ -46,7 +44,7 @@ __[22.07.07] OPEN official pytorch version of AVCE_FER.__
 
 2. Follow preprocessing rules for each dataset by referring pytorch official [custom dataset tutorial](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html).
 
--------
+
 
 ## Run
 
@@ -54,18 +52,21 @@ __[22.07.07] OPEN official pytorch version of AVCE_FER.__
 
 2. Train AVCE.
 
+3. (Or) Execute `run.sh`
+
 ```python
 CUDA_VISIBLE_DEVICES=0 python main.py --freq 250 --model alexnet --online_tracker 1 --data_path <data_path> --save_path <save_path>
 ```
 
-- Arguments
- - __freq__: Parameter saving frequency
- - __model__: CNN model for backbone.
- - __online_tracker__: Wandb on/off.
- - __data_path__: Path to load facial dataset.
- - __save_path__: Path to save weights.
- 
- -------
+| Arguments | Description
+| :-------- | :--------
+| freq | Parameter saving frequency.
+| model | CNN model for backbone. Choose from 'alexnet', and 'resnet18'.
+| online_tracker | Wandb on/off.
+| data_path | Path to load facial dataset.
+| save_path | Path to save weights.
+
+
 
 ## Real-time demo
 
@@ -79,5 +80,5 @@ CUDA_VISIBLE_DEVICES=0 python main.py --freq 250 --model alexnet --online_tracke
 ---
 ### BibTeX
 
-Updated soon.
+##### Updated soon.
 -------
