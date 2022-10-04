@@ -1,12 +1,20 @@
 # AVCE_FER
-This repository provides the official PyTorch implementation of the following paper:
-
 > **Emotion-aware Multi-view Contrastive Learning for Facial Emotion Recognition (ECCV 2022)**<br>
 
-- Real-time demo with pre-trained weights
+<a href="https://releases.ubuntu.com/16.04/"><img alt="Ubuntu" src="https://img.shields.io/badge/Ubuntu-16.04-green"></a>
+<a href="https://www.python.org/downloads/release/python-370/"><img alt="PyThon" src="https://img.shields.io/badge/Python-v3.8-blue"></a>
+<a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
+
+[Daeha Kim](https://scholar.google.co.kr/citations?user=PVt7f0YAAAAJ&hl=ko), [Byung Cheol Song](https://scholar.google.co.kr/citations?user=yo-cOtMAAAAJ&hl=ko)
+
+CVIP Lab, Inha University
+
+
+## Real-time demo with pre-trained weights
 <p align="center">
 <img src="https://github.com/kdhht2334/AVCE_FER/blob/main/AVCE_demo/AVCE_demo_vid.gif" height="320"/>
 </p>
+
 
 ## Requirements
 
@@ -28,7 +36,7 @@ pip install -r requirements.txt
 
 [22.07.10]: Add source code and demo.
 
-[22.07.07] OPEN official pytorch version of AVCE_FER.
+[22.07.07]: OPEN official pytorch version of AVCE_FER.
 
 
 ## Datasets
@@ -43,7 +51,6 @@ pip install -r requirements.txt
  (For more details visit [website](https://ibug.doc.ic.ac.uk/))
 
 2. Follow preprocessing rules for each dataset by referring pytorch official [custom dataset tutorial](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html).
-
 
 
 ## Run
@@ -78,6 +85,10 @@ CUDA_VISIBLE_DEVICES=0 python main.py --freq 250 --model alexnet --online_tracke
   - Before that, you have to train and save `Encoder.t7` and `FC_layer.t7`.
 
 
-## BibTeX
+## Citation
 
-##### Updated soon.
+Updated soon.
+
+
+### Contact
+If you have any questions, feel free to contact me at `kdhht5022@gmail.com`.
