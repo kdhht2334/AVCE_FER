@@ -87,10 +87,14 @@ CUDA_VISIBLE_DEVICES=0 python main.py --freq 250 --model alexnet --online_tracke
 
 ## Citation
 
-	@article{kimemotion,
+	@inproceedings{kim2022emotion,
     	title={Emotion-aware Multi-view Contrastive Learning for Facial Emotion Recognition},
-        author={Kim, Daeha and Song, Byung Cheol}
-    }
+    	author={Kim, Daeha and Song, Byung Cheol},
+    	booktitle={European Conference on Computer Vision},
+    	pages={178--195},
+    	year={2022},
+    	organization={Springer}
+  }
 
 
 ### Contact
