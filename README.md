@@ -53,6 +53,15 @@ pip install -r requirements.txt
 2. Follow preprocessing rules for each dataset by referring pytorch official [custom dataset tutorial](https://pytorch.org/tutorials/beginner/data_loading_tutorial.html).
 
 
+## Pretrained weights
+
+* Check `pretrained_weights` folder.
+
+  - Weights are trained on AFEW-VA dataset.
+  
+  - Weights for __demo__ are trained on multiple VA database (please refer [here](https://github.com/kdhht2334/AVCE_FER/tree/main/AVCE_demo))
+
+
 ## Run
 
 1. Go to `/src`.
